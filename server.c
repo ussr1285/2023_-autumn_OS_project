@@ -1,82 +1,108 @@
-#include <stdio.h>
 #include <fcntl.h>
-#include <errno.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <sys/wait.h>
+#include <errno.h>
 
 #define MAXLINE 4096
-#define STDOUT_FILENO 1
+#define MSG_SIZE 10000
 #define FIFO1 "/tmp/fifo.1"
 #define FIFO2 "/tmp/fifo.2"
 #define FILE_MODE (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
 
-void server(int readfd, int writefd);
+// void fileReadResponse(int readfd, int writefd);
+// void fileWriteResponse();
 
-int main()
-{
-    int readfd, writefd;
-    pid_t childpid;
+int main(void) {
+	char msg[MSG_SIZE];
+	int fd;
+	int readfd;
+	int writefd;
+	int nread;
+    char fileNameBuffer[MAXLINE];
+    char actionBuffer;
+    char byteBuffer[10];
+	char dataBuffer[MAXLINE];
+	char temp_msg[MSG_SIZE];
+	size_t n;
+	// int childpid;
+	// int childStatus;
+	// int ret;
 
-    if ((mkfifo(FIFO1, FILE_MODE) < 0) && (errno != EEXIST))
-    {
-        printf("can't create %s", FIFO1);
-        return(1);
+	if (access(FIFO1,F_OK) == 0) {
+		unlink(FIFO1);
+	}
+	if (access(FIFO2,F_OK) == 0) {
+		unlink(FIFO2);
+	}
+	if ((mkfifo(FIFO1,FILE_MODE)) < 0) {
+		printf("fail to make named pipe\n");
+		return 1;
+	}
+	if ((mkfifo(FIFO2,FILE_MODE)) < 0) {
+		printf("fail to make named pipe\n");
+		return 1;
+	}
+	if ((readfd = open(FIFO1, O_RDWR)) < 0) {
+		printf("fail to open named pipe\n");
+		return 1;
+	}
+	
+    if ((writefd = open(FIFO2, O_WRONLY)) < 0) {
+        printf("fail to open named pipe\n");
+        return 1;
     }
-    if ((mkfifo(FIFO2, FILE_MODE) < 0) && (errno != EEXIST))
-    {
-        unlink(FIFO1);
-        printf("can't create %s", FIFO2);
-        return(1);
-    }
-    if ((childpid=fork())==0)
-    { /* child */
-        readfd = open(FIFO1, O_RDONLY, 0);
-        writefd = open(FIFO2, O_WRONLY, 0);
+	
 
-        server(readfd, writefd);
-        return(0);
-    }
-
-    /* parent */
-    writefd = open(FIFO1, O_WRONLY, 0);
-    readfd = open(FIFO2, O_RDONLY, 0);
-
-    waitpid(childpid, NULL, 0); /* wait for child to terminate */
-
-    close(readfd);
-    close(writefd);
-
-    unlink(FIFO1);
-    unlink(FIFO2);
-    return(0);
-}
-
-void server(int readfd, int writefd)
-{
-    int fd;
-    size_t n;
-    char buff[MAXLINE+1];
-
-    if((n=read(readfd, buff, MAXLINE))==0)
-    {
-        printf("end-of-file");
-        return ;
-    }
-    buff[n]='\0';
-
-    if((fd=open(buff,O_RDONLY))<0)
-    {
-        snprintf(buff+n, sizeof(buff)-n, ": can't open, %s\n", strerror(errno));
-        n=strlen(buff);
-        write(writefd, buff, n);
-    }
-    else
-    {
-        while((n=read(fd, buff, MAXLINE))>0)
-            write(writefd, buff, n);
-        close(fd);
-    }
+	/* parent */
+	while (1) {
+		if ((nread = read(readfd, msg, sizeof(msg))) < 0 ) {
+			printf("fail to call read()\n");
+			return 1;
+		}
+		if(msg[0] != '\0')
+		{
+			strcpy(temp_msg, msg);
+			printf("recv: %s\n", msg);
+			strcpy(fileNameBuffer, strtok(temp_msg, "\n"));
+			actionBuffer = strtok(0, "\n")[0];
+			if(actionBuffer == 'r')
+				strcpy(byteBuffer, strtok(0, "\n"));
+			else if(actionBuffer == 'w')
+				strcpy(dataBuffer, strtok(0, "\n"));
+			else
+				return(-1);
+			printf("%s %c %s %s\n", fileNameBuffer, actionBuffer, byteBuffer, dataBuffer);
+			
+			if(actionBuffer == 'r')
+			{
+				n = strlen(fileNameBuffer);
+				if((fd=open(fileNameBuffer, O_RDONLY))<0)
+				{
+					snprintf(fileNameBuffer+n, sizeof(fileNameBuffer)-n, ": can't open, %s\n", strerror(errno));
+					n=strlen(fileNameBuffer);
+					write(writefd, fileNameBuffer, n);
+				}
+				else
+				{
+					char data[MAXLINE];
+					while((n=read(fd, data, MAXLINE))>0) {
+						data[n + 1]='\0';
+						write(writefd, data, n);
+					}
+					
+					close(fd);
+				}
+			}
+			else if(actionBuffer == 'w')
+			{
+				printf("actionBuffer\n");
+				// fileWrite();
+			}
+			
+		}
+	}
+	return 0;
 }
