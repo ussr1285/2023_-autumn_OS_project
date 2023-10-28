@@ -24,11 +24,11 @@ int main(void) {
     char readBuffer[MAXLINE];
 
 	if ((readfd = open(FIFO2, O_RDWR)) < 0) {
-		printf("fail to open named pipe\n");
+		write(1, "fail to open named pipe\n", 24);
 		return 1;
 	}
     if ((writefd = open(FIFO1, O_WRONLY)) < 0) {
-        printf("fail to open named pipe\n");
+        write(1, "fail to open named pipe\n", 24);
         return 1;
     }
 
@@ -36,12 +36,11 @@ int main(void) {
         userInputs(fileNameBuffer, msg, &actionBuffer, byteBuffer, dataBuffer, readBuffer, readfd, writefd);
 
         if ((nread = write(writefd, msg, sizeof(msg))) < 0 ) { 
-            printf("fail to call write()\n");
+            write(1, "fail to call write()\n", 21);
             return 1;
         }
         read(readfd, readBuffer, sizeof(readBuffer));
         printf("%s\n", readBuffer);
-
     }
     return 0;
 }

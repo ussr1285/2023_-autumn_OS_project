@@ -26,6 +26,7 @@ int main(void) {
     char byteBuffer[10];
 	char dataBuffer[MAXLINE];
 	char temp_msg[MSG_SIZE];
+	char data[MAXLINE];
 	size_t n;
 	// int childpid;
 	// int childStatus;
@@ -38,34 +39,33 @@ int main(void) {
 		unlink(FIFO2);
 	}
 	if ((mkfifo(FIFO1,FILE_MODE)) < 0) {
-		printf("fail to make named pipe\n");
+		write(1, "fail to make named pipe\n", 24);
 		return 1;
 	}
 	if ((mkfifo(FIFO2,FILE_MODE)) < 0) {
-		printf("fail to make named pipe\n");
+		write(1, "fail to make named pipe\n", 24);
 		return 1;
 	}
 	if ((readfd = open(FIFO1, O_RDWR)) < 0) {
-		printf("fail to open named pipe\n");
+		write(1, "fail to open named pipe\n", 24);
 		return 1;
 	}
 	
     if ((writefd = open(FIFO2, O_WRONLY)) < 0) {
-        printf("fail to open named pipe\n");
+        write(1, "fail to open named pipe\n", 24);
         return 1;
     }
-	
 
 	/* parent */
 	while (1) {
 		if ((nread = read(readfd, msg, sizeof(msg))) < 0 ) {
-			printf("fail to call read()\n");
+			write(1, "fail to call read()\n", 20);
 			return 1;
 		}
 		if(msg[0] != '\0')
 		{
 			strcpy(temp_msg, msg);
-			printf("recv: %s\n", msg);
+			// printf("recv: %s\n", msg);
 			strcpy(fileNameBuffer, strtok(temp_msg, "\n"));
 			actionBuffer = strtok(0, "\n")[0];
 			if(actionBuffer == 'r')
@@ -74,7 +74,7 @@ int main(void) {
 				strcpy(dataBuffer, strtok(0, "\n"));
 			else
 				return(-1);
-			printf("%s %c %s %s\n", fileNameBuffer, actionBuffer, byteBuffer, dataBuffer);
+			printf("filename: %s action: %c byte: %s data: %s\n", fileNameBuffer, actionBuffer, byteBuffer, dataBuffer);
 			
 			if(actionBuffer == 'r')
 			{
@@ -87,21 +87,23 @@ int main(void) {
 				}
 				else
 				{
-					char data[MAXLINE];
-					while((n=read(fd, data, MAXLINE))>0) {
-						data[n + 1]='\0';
-						write(writefd, data, n);
+					while((n=read(fd, dataBuffer, MAXLINE))>0) {
+						// dataBuffer[n + 1]='\0';
+						write(writefd, dataBuffer, n);
 					}
-					
+					write(1, "test\n", 5);
 					close(fd);
 				}
 			}
 			else if(actionBuffer == 'w')
 			{
-				printf("actionBuffer\n");
-				// fileWrite();
+				if ((fd = open(fileNameBuffer, O_WRONLY)) < 0) {
+					write(1, "fail to open file.\n", 19);
+					return 1;
+				}
+				write(fd, dataBuffer, sizeof(char)*strlen(dataBuffer));
+				write(writefd, dataBuffer, sizeof(char)*strlen(dataBuffer));
 			}
-			
 		}
 	}
 	return 0;
