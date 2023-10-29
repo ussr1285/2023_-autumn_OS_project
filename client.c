@@ -9,7 +9,7 @@
 #define FIFO1 "/tmp/fifo.1"
 #define FIFO2 "/tmp/fifo.2"
 
-void userInputs(char *fileNameBuffer, char *msg, char *actionBuffer, char *byteBuffer, char *dataBuffer, char *readBuffer, int readfd, int writefd);
+void userInputs(char *fileNameBuffer, char *msg, char *actionBuffer, char *byteBuffer, char *dataBuffer);
 
 int main(void) {
     char msg[MSG_SIZE];
@@ -32,7 +32,7 @@ int main(void) {
     }
 
     while(1) {
-        userInputs(fileNameBuffer, msg, &actionBuffer, byteBuffer, dataBuffer, readBuffer, readfd, writefd);
+        userInputs(fileNameBuffer, msg, &actionBuffer, byteBuffer, dataBuffer);
 
         if ((nread = write(writefd, msg, sizeof(msg))) < 0 ) { 
             write(1, "fail to call write()\n", 21);
@@ -45,7 +45,7 @@ int main(void) {
     return 0;
 }
 
-void userInputs(char *fileNameBuffer, char *msg, char *actionBuffer, char *byteBuffer, char *dataBuffer, char *readBuffer, int readfd, int writefd)
+void userInputs(char *fileNameBuffer, char *msg, char *actionBuffer, char *byteBuffer, char *dataBuffer)
 {
     write(1, "Please enter file name: ", 24);
     fgets(fileNameBuffer, MAXLINE, stdin);
