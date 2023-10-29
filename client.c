@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #define MAXLINE 4096
 #define MSG_SIZE 10000
@@ -61,6 +62,11 @@ void userInputs(char *fileNameBuffer, char *msg, char *actionBuffer, char *byteB
 	{
 		write(1, "Please enter bytes: ", 20);
     	fgets(byteBuffer, 11, stdin);
+    	if(isdigit(*byteBuffer) == 0)
+		{
+			write(1, "Please enter a number.\n", 23);
+			exit(1);
+		}
 		strcat(msg, byteBuffer);
 	}
 	else if (*actionBuffer == 'w')

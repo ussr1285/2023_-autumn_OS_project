@@ -197,6 +197,7 @@ named pipe를 구현하고 입출력을 활용하고, 그 과정 속에 문자�
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 ```
 
 named pipe를 활용할 것이기 때문에, 임의의 FIFO1(/tmp/fifo.1)과 FIFO2(/tmp/fifo.2)를 사용했습니다.
@@ -224,7 +225,7 @@ userInputs 이라는 자체 제작한 함수를 사용해 사용자의 입력을
 서버로부터 응답이 돌아오면 그 응답을 읽어서 클라이언트의 터미널에 출력하여 확인합니다.
 ```{c}
 while(1) {
-	userInputs(fileNameBuffer, msg, &actionBuffer, byteBuffer, dataBuffer, readBuffer, readfd, writefd);
+	userInputs(fileNameBuffer, msg, &actionBuffer, byteBuffer, dataBuffer);
 
 	if ((nread = write(writefd, msg, sizeof(msg))) < 0 ) { 
 		write(1, "fail to call write()\n", 21);
@@ -236,14 +237,14 @@ while(1) {
 }
 ```
 
-### int userInputs(char *fileNameBuffer, char *msg, char *actionBuffer, char *byteBuffer, char *dataBuffer, char *readBuffer, int readfd, int writefd)
-
+### void userInputs(char *fileNameBuffer, char *msg, char *actionBuffer, char *byteBuffer, char *dataBuffer)
 이 함수는 사용자의 입력을 안내 문구와 함께 하나씩 받습니다.
 파일 이름을 입력받고, access type을 입력 받습니다.
 이후 입력 받았던 access type이 r이면 byte를 입력받고 w라면 입력할 데이터를 입력받습니다.
 각 입력을 받을 때마다 msg에 합쳐 놓아서, 서버로 보낼 메시지를 만듭니다.
 
 단, 이때 access type이 r 이나 w 중 하나가 아니라면, 오류 메시지를 띄우고 프로그램을 종료시킵니다.
+또는 입력받은 byte가 숫자가 아니라면, 오류 메시지를 띄우고 종료시킵니다.
 
 ```{c}
 write(1, "Please enter file name: ", 24);
@@ -260,6 +261,11 @@ if (*actionBuffer == 'r')
 {
 	write(1, "Please enter bytes: ", 20);
 	fgets(byteBuffer, 11, stdin);
+	if(isdigit(*byteBuffer) == 0)
+	{
+		write(1, "Please enter a number.\n", 23);
+		exit(1);
+	}
 	strcat(msg, byteBuffer);
 }
 else if (*actionBuffer == 'w')
