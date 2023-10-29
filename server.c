@@ -12,9 +12,6 @@
 #define FIFO2 "/tmp/fifo.2"
 #define FILE_MODE (S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)
 
-// void fileReadResponse(int readfd, int writefd);
-// void fileWriteResponse();
-
 int main(void) {
 	char msg[MSG_SIZE];
 	int fd;
@@ -26,7 +23,7 @@ int main(void) {
     char byteBuffer[10];
 	char dataBuffer[MAXLINE];
 	char temp_msg[MSG_SIZE];
-	char data[MAXLINE];
+	char lenBuffer[MAXLINE];
 	size_t n;
 	pid_t childpid;
 
@@ -48,13 +45,11 @@ int main(void) {
 		write(1, "fail to open named pipe\n", 24);
 		exit(1);
 	}
-	
     if ((writefd = open(FIFO2, O_WRONLY)) < 0) {
         write(1, "fail to open named pipe\n", 24);
         exit(1);
     }
 
-	/* parent */
 	while (1) {
 		if ((nread = read(readfd, msg, sizeof(msg))) < 0 ) {
 			write(1, "fail to call read()\n", 20);
@@ -62,9 +57,9 @@ int main(void) {
 		}
 		if(msg[0] != '\0')
 		{
-			int pid = fork();
+			childpid = fork();
 
-			if(pid == 0) // child
+			if(childpid == 0) // child
 			{
 				strcpy(temp_msg, msg);
 				strcpy(fileNameBuffer, strtok(temp_msg, "\n"));
@@ -74,7 +69,7 @@ int main(void) {
 				else if(actionBuffer == 'w')
 					strcpy(dataBuffer, strtok(0, "\n"));
 				else
-					return(-1);
+					_exit(1);
 				printf("filename: %s action: %c byte: %s data: %s\n", fileNameBuffer, actionBuffer, byteBuffer, dataBuffer);
 				
 				if(actionBuffer == 'r')
@@ -98,17 +93,25 @@ int main(void) {
 				}
 				else if(actionBuffer == 'w')
 				{
-					if ((fd = open(fileNameBuffer, O_WRONLY | O_TRUNC)) < 0) {
+					if ((fd = open(fileNameBuffer, O_WRONLY | O_TRUNC)) < 0)
+					{
 						write(1, "fail to open file.\n", 19);
 						write(writefd, "fail to open file.\n", 19);
 						continue ;
 					}
 					write(fd, dataBuffer, sizeof(char)*strlen(dataBuffer));
-					write(writefd, dataBuffer, sizeof(char)*strlen(dataBuffer));
+					lenBuffer[sizeof(char)*strlen(dataBuffer)] = '\0';
+					sprintf(lenBuffer, "%lu", sizeof(char)*strlen(dataBuffer));
+					write(writefd, lenBuffer, strlen(dataBuffer));
 					close(fd);
 				}
-			} 
-			else if(pid < 0)// error
+				_exit(0);
+			}
+			else if(childpid > 0) // parent
+			{
+				waitpid(childpid, NULL, WNOHANG); 
+			}
+			else if(childpid < 0) // error
 			{
 				write(1, "Can't make child process.\n", 26);
 				write(writefd, "Server Error.\n", 14);

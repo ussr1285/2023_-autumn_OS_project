@@ -1,5 +1,4 @@
 #include <fcntl.h>
-#include <sys/stat.h>
 #include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,7 +9,7 @@
 #define FIFO1 "/tmp/fifo.1"
 #define FIFO2 "/tmp/fifo.2"
 
-int userInputs(char *fileNameBuffer, char *msg, char *actionBuffer, char *byteBuffer, char *dataBuffer, char *readBuffer, int readfd, int writefd);
+void userInputs(char *fileNameBuffer, char *msg, char *actionBuffer, char *byteBuffer, char *dataBuffer, char *readBuffer, int readfd, int writefd);
 
 int main(void) {
     char msg[MSG_SIZE];
@@ -46,7 +45,7 @@ int main(void) {
     return 0;
 }
 
-int userInputs(char *fileNameBuffer, char *msg, char *actionBuffer, char *byteBuffer, char *dataBuffer, char *readBuffer, int readfd, int writefd)
+void userInputs(char *fileNameBuffer, char *msg, char *actionBuffer, char *byteBuffer, char *dataBuffer, char *readBuffer, int readfd, int writefd)
 {
     write(1, "Please enter file name: ", 24);
     fgets(fileNameBuffer, MAXLINE, stdin);
@@ -75,5 +74,5 @@ int userInputs(char *fileNameBuffer, char *msg, char *actionBuffer, char *byteBu
         write(1, "Please enter access correctly.\n", 31);
         exit(1);
     }
-	return (0);
+	return ;
 }
