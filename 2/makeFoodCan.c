@@ -7,7 +7,8 @@
 #define STERILIZATION_CELSIUS_SCALE 103
 
 int buffer[BUFFER_SIZE];
-int count = 0;
+int sterilizedFoodCount = 0;
+int foodCanCount = 0;
 
 // Producer function
 void* foodProducer(void* arg) {
@@ -20,14 +21,14 @@ void* foodProducer(void* arg) {
     while (kPa < STERILIZATION_KPA)
         kPa++;
     while(1) {
-        while(count == BUFFER_SIZE);
+        while(sterilizedFoodCount == BUFFER_SIZE);
         int item;
         // Produce an item
         if (kPa >= STERILIZATION_KPA && celsiusScale >= STERILIZATION_CELSIUS_SCALE)
         {
             item = rand() % 100; // food_quality?!
-            buffer[count] = item;
-            count++;
+            buffer[sterilizedFoodCount] = item;
+            sterilizedFoodCount++;
             printf("Produced: %d\n", item);
         }
         else
@@ -40,15 +41,17 @@ void* foodProducer(void* arg) {
 }
 
 // Consumer function
-void* makeCan(void* arg) {
+void* makeFoodCan(void* arg) {
     while(1) {
-        while(count == 0); // Wait if buffer is empty
+        while(sterilizedFoodCount == 0); // Wait if buffer is empty
 
         // Consume an item
-        count--;
-        int item = buffer[count];
+        sterilizedFoodCount--;
+        int item = buffer[sterilizedFoodCount];
         
         printf("Consumed: %d\n", item);
+        foodCanCount++;
+        printf("foodCan: %d\n", foodCanCount);
         sleep(1); // Simulate work
     }
 }
