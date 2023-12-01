@@ -47,7 +47,9 @@ int main(void) {
             exit(1);
         }
         read(readfd, readBuffer, sizeof(readBuffer));
-        printf("%s\n", readBuffer);
+        printf("\n%s\n", readBuffer);
+        if (controlVar[0] == 'c')
+            return 0;
     }
     return 0;
 }

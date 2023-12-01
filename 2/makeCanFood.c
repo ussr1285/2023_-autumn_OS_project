@@ -5,14 +5,13 @@
 
 #define STERILIZATION_KPA 121
 #define STERILIZATION_CELSIUS_SCALE 103
-#define FOOD_CAN_PER_BOX 8
 
 int buffer[BUFFER_SIZE];
 int sterilizedFoodCount = 0;
 extern int foodCanCnt;
-extern int foodCanBoxCnt;
+int bufferIn = -1;
+int bufferOut = -1;
 
-// Producer function
 void* foodProducer(void* arg) {
     int kPa = 0; // 기압
     int celsiusScale = 0; // 섭씨 온도.
@@ -24,42 +23,38 @@ void* foodProducer(void* arg) {
         kPa++;
     while(1) {
         while(sterilizedFoodCount == BUFFER_SIZE);
-        int item;
-        // Produce an item
+        // sleep(1); // 오류 내기 위한 sleep.
+        int foodType;
         if (kPa >= STERILIZATION_KPA && celsiusScale >= STERILIZATION_CELSIUS_SCALE)
         {
-            item = rand() % 100; // food_type
-            buffer[sterilizedFoodCount] = item;
+            foodType = rand() % 100 + 1;
+            bufferIn = (bufferIn + 1) % BUFFER_SIZE;
+            buffer[bufferIn] = foodType;
             sterilizedFoodCount++;
-            // printf("Produced: %d\n", item);
+            // printf("Produced: %d\n", foodType);
         }
         else
         {
             printf("Someting wrong at foodProducer.");
             exit(1);
         }
-        sleep(1);
+        sleep(1); // 작업 소요 시간.
     }
 }
 
-// Consumer function
 void* makeFoodCan(void* arg) {
     while(1) {
-        while(sterilizedFoodCount == 0); // Wait if buffer is empty
-
-        // Consume an item
-        sterilizedFoodCount--;
-        int item = buffer[sterilizedFoodCount];
+        while(sterilizedFoodCount == 0);
+        int foodType;
         
-        // printf("Consumed: %d\n", item);
+        bufferOut = (bufferOut + 1) % BUFFER_SIZE;
+        foodType = buffer[bufferOut];
+        buffer[sterilizedFoodCount] = 0;
+        printf("sterilizedFoodCount: %d\n", sterilizedFoodCount);
+        sterilizedFoodCount--;
+        // printf(" Consumed: %d\n", foodType);
         foodCanCnt++;
-        // if (foodCanCnt >= FOOD_CAN_PER_BOX)
-        // {
-        //     foodCanCnt %= FOOD_CAN_PER_BOX;
-        //     foodCanBoxCnt++;
-        // }
-        // printf("foodCan: %d, foodCanBox: %d\n", foodCanCnt, foodCanBoxCnt);
-        // printf("foodCan: %d\n", foodCanCnt);
-        sleep(1); // Simulate work
+        printf("foodCan: %d\n", foodCanCnt);
+        sleep(1); // 작업 소요시간
     }
 }

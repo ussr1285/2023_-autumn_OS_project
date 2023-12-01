@@ -28,8 +28,7 @@ int runServer(int prod_size, int cons_size) {
 
     prod_thread = (pthread_t *) malloc(sizeof(pthread_t) * prod_size);
     cons_thread = (pthread_t *) malloc(sizeof(pthread_t) * cons_size);
-
-    // Create producer threads // Create consumer threads
+    
     i = -1;
     while(++i < prod_size)
     {
@@ -41,17 +40,7 @@ int runServer(int prod_size, int cons_size) {
         pthread_create(&(cons_thread[i]), NULL, makeFoodCan, NULL);
     }
 
-    // Wait for the threads to finish (they won't in this example)
     i = -1;
-    // while(++i < prod_size)
-    // {
-    //     pthread_join(prod_thread[i], NULL);
-    // }
-    // i = -1;
-    // while(++i < cons_size)
-    // {
-    //     pthread_join(cons_thread[i], NULL);
-    // }
     return 0;
 }
 
@@ -106,7 +95,7 @@ int main(void) {
                 packingMachine = atoi(strtok(0, "\n"));
                 runServer(amountFoodProducer, packingMachine);
                 sprintf(sendMsg, "Foodcan factory running now.");
-                printf("amountFoodProducer: %d, packingMachine: %d\nFactory running start.\n", amountFoodProducer, packingMachine);
+                // printf("amountFoodProducer: %d, packingMachine: %d\nFactory running start.\n", amountFoodProducer, packingMachine);
                 write(writefd, sendMsg, strlen(sendMsg));
             }
             firstRun = 0;
@@ -130,11 +119,13 @@ int main(void) {
                 else if(controlVar == 'c')
                 {
                     sprintf(sendMsg, "공장 가동을 종료합니다.\n");
+                    printf("%s\n", sendMsg);
+                    write(writefd, sendMsg, strlen(sendMsg));
                     exit(1);
                 }
                 else if(msg[0] >= 0 && msg[0] <= 127)
                 {
-                    printf("msg: %s", msg);
+                    printf("msg: %s\n", msg);
                     sprintf(sendMsg, "올바른 명령을 입력해주세요.\n");
                 }
                 msg[0] = '\0';
