@@ -50,10 +50,87 @@ c. 기계 동작을 중지.
 - 현재까지 생산된 통조림 재고 확인.
 - 중지.
 
+아래는 client.c의 핵심 코드입니다. 계속해서 서버(factoryManageServer.c) 프로세스와 통신하며 쿼리를 날려 지시를 하거나 메세지를 받는 업무를 수행합니다.
+```c
+    while(1) {
+        if (firstInput)
+        {
+            settingInputs(msg, &amountFoodProducer, &packingMachine);
+            firstInput = 0;
+        }
+        else
+            controlInput(msg, controlVar);
+        if ((nread = write(writefd, msg, sizeof(msg))) < 0 ) { 
+            write(1, "fail to call write()\n", 21);
+            exit(1);
+        }
+        read(readfd, readBuffer, sizeof(readBuffer));
+        printf("\n%s\n", readBuffer);
+        if (controlVar[0] == 'c')
+            return 0;
+    }
+```
+
 ### 기계 관리용 서버 프로그램 (factoryManageServer.c)
 - 클라이언트로부터 입력된 기계 수 만큼 각각의 생산 쓰레드가 생성되어 동작합니다.
 - 프로그램이 종료할 때 아까의 생산 기계를 관리하던 쓰레드들도 같은 프로세스이므로 같이 종료됩니다.
-#### 쓰레드가 수행하는 업무 소개.
+
+아래는 factoryManageServer.c의 핵심 코드입니다. 클라이언트 프로세스(client.c)와 통신하며 쿼리를 받아 기계 숫자를 처음에 설정하여 쓰레드들(makeCanFood.c)에게 업무를 지시하고, 이후에는 클라이언트로부터의 쿼리에 맞게 데이터를 클라이언트에 보내거나 서버 프로그램을 종료하는 등의 업무를 수행합니다.
+```c
+	while (1) {
+        if (firstRun == 1)
+        {
+            if ((nread = read(readfd, msg, sizeof(msg))) < 0 ) {
+                write(1, "fail to call read()\n", 20);
+                exit(1);
+            }
+            if(msg[0] != '\0') {
+                strcpy(temp_msg, msg);
+                amountFoodProducer = atoi(strtok(temp_msg, "\n"));
+                packingMachine = atoi(strtok(0, "\n"));
+                runServer(amountFoodProducer, packingMachine);
+                sprintf(sendMsg, "Foodcan factory running now.");
+                write(writefd, sendMsg, strlen(sendMsg));
+            }
+            firstRun = 0;
+            msg[0] = '\0';
+        }
+        else
+        {
+            if ((nread = read(readfd, msg, sizeof(msg))) < 0 ) {
+                write(1, "fail to call read()\n", 20);
+                exit(1);
+            }
+            if(msg[0] != '\0') {
+                controlVar = msg[0];
+                if(controlVar == 'a')
+                {
+                    sprintf(sendMsg, "통조림 음식 멸균기: %d, 통조림 포장기계: %d\n",amountFoodProducer, packingMachine);
+                }
+                else if(controlVar == 'b'){
+                    sprintf(sendMsg, "현재까지 생산된 통조림: %d\n", foodCanCnt);
+                }
+                else if(controlVar == 'c')
+                {
+                    sprintf(sendMsg, "공장 가동을 종료합니다.\n");
+                    printf("%s\n", sendMsg);
+                    write(writefd, sendMsg, strlen(sendMsg));
+                    exit(1);
+                }
+                else if(msg[0] >= 0 && msg[0] <= 127)
+                {
+                    printf("msg: %s\n", msg);
+                    sprintf(sendMsg, "올바른 명령을 입력해주세요.\n");
+                }
+                msg[0] = '\0';
+                write(writefd, sendMsg, strlen(sendMsg));
+            }
+        }
+	}
+```
+
+
+### 서버 프로세스의 쓰레드가 수행하는 업무 소개. (makeCanFood.c)
 **음식 멸균 (void* foodProducer(void* arg))**
     - 통조림 재료 통조림 가열하기. (Producer/Consumer 중 Produce 수행.)
 **통조림 포장(void* makeFoodCan(void* arg))**
@@ -61,6 +138,70 @@ c. 기계 동작을 중지.
     - 통조림 포장.
     - 하나의 통조림이 완성되면 기존 재고 수에 방금 만든 통조림 하나를 추가한다. (Read & Write)
 
+이번 프로젝트의 핵심인 동기화가 들어간 부분의 코드들입니다.
 
+먼저 foodProducer는 Producer 역할을 수행하였습니다. 통조림 생산 공장에서 통조림 포장 전, 균을 다 죽여서 보존이 가능하게 만들 수 있도록 하는 역할을 수행합니다. 만약 버퍼(통조림 포장기로 가기 위한)가 가득 차면 기다리고, 아니라면 재료(음식) 멸균을 시작합니다. 그리고 그것을 버퍼에 집어넣어 통조림 포장기로 갈 수 있게 해줍니다. 이 부분을 mutex로 보호하여 멸균된 음식이 버퍼에 초과되지 않도록 만들어줍니다.
+```c
+void* foodProducer(void* arg) {
+    int kPa = 0; // 기압
+    int celsiusScale = 0; // 섭씨 온도.
 
+    // 멸균을 위한 Autoclave 세팅 준비.
+    while (celsiusScale <= STERILIZATION_CELSIUS_SCALE)
+        celsiusScale++;
+    while (kPa < STERILIZATION_KPA)
+        kPa++;
+    while(1) {
+        while(sterilizedFoodCount == BUFFER_SIZE) // 버퍼가 가득 찼을 때 대기
+            pthread_cond_wait(&buffer_not_full, &mutex); 
+        int foodType;
+        if (kPa >= STERILIZATION_KPA && celsiusScale >= STERILIZATION_CELSIUS_SCALE)
+        {
+            foodType = rand() % 100 + 1;
+            bufferIn = (bufferIn + 1) % BUFFER_SIZE;
+            buffer[bufferIn] = foodType;
+            sterilizedFoodCount++;
+            // printf("Produced: %d\n", foodType);
+        }
+        else
+        {
+            printf("Someting wrong at foodProducer.");
+            exit(1);
+        }
+
+        pthread_cond_signal(&buffer_not_empty); // 버퍼가 비어있지 않다는 신호
+        pthread_mutex_unlock(&mutex); // 뮤텍스 해제
+
+        sleep(1); // 작업 소요 시간.
+    }
+}
+```
+
+makeFoodCan는 consume(통조림 포장) 후 통조림 재고(foodCanCnt)를 증가시켜주는 역할을 수행합니다. 멸균된 재료가 존재할 때, 통에 포장한 후, 통조림 재고 개수를 1 증가시켜 최신화 해주는 역할을 수행합니다.
+```c
+void* makeFoodCan(void* arg) {
+    while(1) {
+        pthread_mutex_lock(&mutex); // 뮤텍스 잠금
+        
+        while(sterilizedFoodCount == 0)
+            pthread_cond_wait(&buffer_not_empty, &mutex); // 버퍼가 비었을 때 대기
+        int foodType;
+
+        bufferOut = (bufferOut + 1) % BUFFER_SIZE;
+        foodType = buffer[bufferOut];
+        sterilizedFoodCount--;
+        buffer[bufferOut] = 0;
+        printf("sterilizedFoodCount: %d\n", sterilizedFoodCount + 1);
+        
+        // printf(" Consumed: %d\n", foodType);
+
+        foodCanCnt++;
+        printf("foodCan: %d\n", foodCanCnt);
+
+        pthread_cond_signal(&buffer_not_full); // 버퍼가 가득 차지 않았다는 신호
+        pthread_mutex_unlock(&mutex); // 뮤텍스 해제
+        sleep(1); // 작업 소요시간
+    }
+}
+```
 

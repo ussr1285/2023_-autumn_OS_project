@@ -95,7 +95,6 @@ int main(void) {
                 packingMachine = atoi(strtok(0, "\n"));
                 runServer(amountFoodProducer, packingMachine);
                 sprintf(sendMsg, "Foodcan factory running now.");
-                // printf("amountFoodProducer: %d, packingMachine: %d\nFactory running start.\n", amountFoodProducer, packingMachine);
                 write(writefd, sendMsg, strlen(sendMsg));
             }
             firstRun = 0;

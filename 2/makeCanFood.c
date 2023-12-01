@@ -27,8 +27,8 @@ void* foodProducer(void* arg) {
     while (kPa < STERILIZATION_KPA)
         kPa++;
     while(1) {
-        while(sterilizedFoodCount == BUFFER_SIZE)
-            pthread_cond_wait(&buffer_not_full, &mutex); // 버퍼가 가득 찼을 때 대기
+        while(sterilizedFoodCount == BUFFER_SIZE)// 버퍼가 가득 찼을 때 대기
+            pthread_cond_wait(&buffer_not_full, &mutex); 
         int foodType;
         if (kPa >= STERILIZATION_KPA && celsiusScale >= STERILIZATION_CELSIUS_SCALE)
         {
@@ -64,8 +64,6 @@ void* makeFoodCan(void* arg) {
         sterilizedFoodCount--;
         buffer[bufferOut] = 0;
         printf("sterilizedFoodCount: %d\n", sterilizedFoodCount + 1);
-        
-        // printf(" Consumed: %d\n", foodType);
 
         foodCanCnt++;
         printf("foodCan: %d\n", foodCanCnt);
